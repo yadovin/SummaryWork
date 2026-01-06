@@ -1,6 +1,9 @@
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
+
+import pandas as pd
+
 from models import Operation
 from storage import load_operations, save_operations
 from utils import validate_date, validate_amount
@@ -37,6 +40,20 @@ class FinanceApp:
         tk.Button(root, text="Добавить операцию", command=self.add_operation).grid(row=5, column=0, columnspan=2,
                                                                                    pady=5)
         tk.Button(root, text="Анализ", command=self.analyze).grid(row=6, column=0, columnspan=2, pady=5)
+
+        self.filter_frame = tk.Frame(root)
+        self.filter_frame.grid(row=7, column=0, columnspan=3, pady=10, padx=5, sticky="ew")
+
+        tk.Label(self.filter_frame, text="Дата с").grid(row=0, column=0, padx=5)
+        self.start_date_entry = tk.Entry(self.filter_frame, width=12)
+        self.start_date_entry.grid(row=0, column=1)
+
+        tk.Label(self.filter_frame, text="по").grid(row=0, column=2, padx=5)
+        self.end_date_entry = tk.Entry(self.filter_frame, width=12)
+        self.end_date_entry.grid(row=0, column=3)
+
+        tk.Button(self.filter_frame, text="Применить фильтр", command=self.apply_filter).grid(row=0, column=4, padx=10)
+        tk.Button(self.filter_frame, text="Сбросить", command=self.reset_filter).grid(row=0, column=5, padx=10)
 
         # --- Таблица для операций ---
         columns = ("date", "type", "category", "amount", "comment")
@@ -88,16 +105,19 @@ class FinanceApp:
         self.update_tree()
         messagebox.showinfo("Готово", "Операция добавлена")
 
-    def update_tree(self):
+
+    def update_tree(self, df=None):
         for row in self.tree.get_children():
             self.tree.delete(row)
-        for op in self.operations:
+        if df is None:
+            df = operations_to_df(self.operations)
+        for _, op in df.iterrows():
             self.tree.insert("", tk.END, values=(
-                op.date.strftime("%Y-%m-%d"),
-                op.op_type.upper(),
-                op.category,
-                f"{op.amount:.2f}",
-                op.comment
+                op["date"].strftime("%Y-%m-%d") if isinstance(op["date"], pd.Timestamp) else op["date"],
+                op["op_type"].upper(),
+                op["category"],
+                f"{float(op['amount']):.2f}",
+                op["comment"]
             ))
 
     def analyze(self):
@@ -109,3 +129,32 @@ class FinanceApp:
         # Круговая диаграмма доходов
         plot_pie_by_category(df, "income")
 
+
+
+
+    def apply_filter(self):
+        start_date_str = self.start_date_entry.get()
+        end_date_str = self.end_date_entry.get()
+
+        if not validate_date(start_date_str) or not validate_date(end_date_str):
+            messagebox.showerror("Ошибка", "Некорректный формат дат")
+            return
+
+        start_date = pd.to_datetime(start_date_str)
+        end_date = pd.to_datetime(end_date_str)
+
+        df = operations_to_df(self.operations)
+        filtered_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+        self.update_tree(filtered_df)
+
+
+        plot_pie_by_category(filtered_df, "expense")
+        plot_pie_by_category(filtered_df, "income")
+
+    def reset_filter(self):
+        self.start_date_entry.delete(0, tk.END)
+        self.end_date_entry.delete(0, tk.END)
+        self.update_tree()
+        df = operations_to_df(self.operations)
+        plot_pie_by_category(df, "expense")
+        plot_pie_by_category(df, "income")
