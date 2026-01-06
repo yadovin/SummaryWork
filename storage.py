@@ -1,56 +1,62 @@
 import os
 import csv
+from models import Operation
 
-from models import Transaction
-
+# Папка и файл для хранения данных
 DATA_DIR = "data"
-CSV_FILE = os.path.join(DATA_DIR, "transactions.csv")
+CSV_FILE = os.path.join(DATA_DIR, "operations.csv")
 
 def ensure_data_dir():
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
+    os.makedirs(DATA_DIR, exist_ok=True)
 
-def save_transactions(transactions):
-    if not transactions: return
+def save_operations(operations: list[Operation]):
+    if not operations:
+        return
+
     ensure_data_dir()
     file_exists = os.path.isfile(CSV_FILE)
+
     try:
-        with open(CSV_FILE, mode = "a", newline="", encoding="utf-8") as f:
-            fieldnames = ['amount', 'category', 'date', 'description', 'transaction_type']
+        with open(CSV_FILE, mode='a', newline='', encoding='utf-8') as f:
+            fieldnames = ["amount", "category", "date", "comment", "op_type"]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
 
             if not file_exists:
                 writer.writeheader()
 
-            for t in transactions:
-                writer.writerow(t.to_dict())
+            for op in operations:
+                writer.writerow(op.to_dict())
 
-    except Exception as e:
-        print(f"Ошибка при сохранении данных {e}")
+    except (IOError, ValueError) as e:
+        print(f"Ошибка при сохранении данных: {e}")
 
-def load_transactions():
-    transactions = []
-    if not os.path.isfile(DATA_DIR):
-        return transactions
+def load_operations() -> list[Operation]:
+    """
+    Загружает все операции из CSV и возвращает список Operation.
+    При ошибках возвращает пустой список.
+    """
+    operations = []
+
+    if not os.path.exists(CSV_FILE):
+        return operations
+
     try:
-        with open(CSV_FILE, mode = "r", encoding="utf-8") as f:
+        with open(CSV_FILE, mode='r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-
             for row in reader:
-                t = Transaction(
-                    amount=float(row['amount']),
-                    category=row['category'],
-                    date=row['date'],
-                    description=row.get('description', ''),
-                    transaction_type=row['transaction_type']
-                )
-                transactions.append(t)
+                try:
+                    op = Operation(
+                        amount=float(row["amount"]),
+                        category=row["category"],
+                        date=row["date"],
+                        comment=row.get("comment", ""),
+                        op_type=row["type"]
+                    )
+                    operations.append(op)
+                except ValueError as ve:
+                    print(f"Пропущена некорректная запись: {ve}")
 
-    except Exception as e:
+    except (IOError, csv.Error) as e:
         print(f"Ошибка при загрузке данных: {e}")
-        return []
-    return transactions
 
-
-
-
+    return operations
