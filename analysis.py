@@ -1,3 +1,5 @@
+
+
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -20,3 +22,21 @@ def plot_pie_by_category(df: pd.DataFrame, op_type: str):
     plt.ylabel("")
     plt.show()
 
+def plot_monthly_summary(df: pd.DataFrame, start_date=None, end_date=None):
+    if df.empty:
+        print("Нет данных для построения графика")
+        return
+
+    if start_date and end_date:
+        df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+
+    df['month'] = df['date'].dt.to_period('M')
+
+    grouped = df.groupby(['month', 'op_type'])['amount'].sum().unstack().fillna(0)
+
+    ax = grouped.plot(kind='bar', figsize=(8, 6))
+    ax.set_title("Общий доход и расходы по месяцам")
+    ax.set_xlabel("Месяц")
+    ax.set_ylabel("Сумма")
+    plt.tight_layout()
+    plt.show()

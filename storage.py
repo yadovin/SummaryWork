@@ -2,39 +2,26 @@ import os
 import csv
 from models import Operation
 
-# Папка и файл для хранения данных
+
 DATA_DIR = "data"
 CSV_FILE = os.path.join(DATA_DIR, "operations.csv")
 
 def ensure_data_dir():
     os.makedirs(DATA_DIR, exist_ok=True)
 
-def save_operations(operations: list[Operation]):
-    if not operations:
-        return
-
+def save_operations(operations: list[Operation], overwrite=False):
     ensure_data_dir()
-    file_exists = os.path.isfile(CSV_FILE)
-
-    try:
-        with open(CSV_FILE, mode='a', newline='', encoding='utf-8') as f:
-            fieldnames = ["amount", "category", "date", "comment", "op_type"]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-
-            if not file_exists:
-                writer.writeheader()
-
-            for op in operations:
-                writer.writerow(op.to_dict())
-
-    except (IOError, ValueError) as e:
-        print(f"Ошибка при сохранении данных: {e}")
+    mode = 'w' if overwrite else 'a'
+    with open(CSV_FILE, mode=mode, newline='', encoding='utf-8') as f:
+        fieldnames = ["amount", "category", "date", "comment", "op_type"]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if overwrite:
+            writer.writeheader()
+        for op in operations:
+            writer.writerow(op.to_dict())
 
 def load_operations() -> list[Operation]:
-    """
-    Загружает все операции из CSV и возвращает список Operation.
-    При ошибках возвращает пустой список.
-    """
+
     operations = []
 
     if not os.path.exists(CSV_FILE):
@@ -50,7 +37,7 @@ def load_operations() -> list[Operation]:
                         category=row["category"],
                         date=row["date"],
                         comment=row.get("comment", ""),
-                        op_type=row["type"]
+                        op_type=row["op_type"]
                     )
                     operations.append(op)
                 except ValueError as ve:
